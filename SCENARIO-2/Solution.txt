@@ -1,0 +1,51 @@
+Problem Statement:
+
+Q2 - SCENARIO
+Macro Life, a healthcare company has recently setup the entire Network and Infrastructure on Azure. 
+The infrastructure has different components such as Virtual N/W, Subnets, NIC, IPs, NSG etc.
+The IT team currently has developed PowerShell scripts to deploy each component where all the properties of each resource is set using PowerShell commands.
+The business has realized that the PowerShell scripts are growing over period of time and difficult to handover when new admin onboards in the IT.
+The IT team has now decided to move to ARM based deployment of all resources to Azure.
+All the passwords are stored in a Azure Service known as key Vault. The deployments needs to be automated using Azure DevOps using IaC(Infrastructure as Code).
+
+1) What are different artifacts you need to create - name of the artifacts and its purpose
+2) List the tools you will to create and store the ARM templates.
+3) Explain the process and steps to create automated deployment pipeline. 
+4) Create a sample ARM template you will use to deploy a Windows VM of any size
+5) Explain how will you access the password stored in Key Vault and use it as Admin Password in the VM ARM template.
+
+Solution:
+
+Please check attached Sample ARM template.
+
+1. We will require Resource group , Subscription (service principle need to create in azure devops) for Azure connection, Admin User ID and password for VM, Custom Image template, Storage account/Subnet and finally ARM template to create/ Deploy VM on azure.
+2. ARM template is basically json file and we can create template using any good JSON editor. for eg. Visual studio code.
+   ARM template can be stored in GIT repository and we can upload ARM templates through Azure devops build pipeline to any package manager (eg. Jfrog Artifactory), so we can use that for futher deployment.
+3. To deploy VM through Azure DevOps Release:
+    - Create Azure Resource Manager Subscription for connection to Azure portal from Azure DevOps/TFS
+    -Create release pipeline and bellow are the steps:
+            1. Download ARM template package from Artifactory (Inline PS script : We can use jfrog api to Download package )
+            2. Extract ZIP package using task : Extract File 
+            3. Get password stored in Key vault:
+                - Task : Azure Key Vault
+                - Add Azure Subscription (For which we have granted access to key vault)
+                -key vault name : name of the Key vault where password has been stored
+                - secrete Filter : secrete Name
+                This will fetch the password and set them as task variables which can be consumed in the following tasks
+            4.Create VM : task: Azure devtest lab creates VM 
+                -Azure RM Subscription 
+                - Enter LAB name where VM is going to be created
+                -Template Name: path to ARM template
+                -Template Parameter : eg. Username, password, VM name , etc
+
+4.Please check attached Sample ARM template.
+
+5. To access password from Azure Key Vault:
+- create service principle from Azure devops portal (Azure Subscription used in release pipeine for Azure devops connection to Azure services)
+- Grant access to this service principle to Key vault
+- Use "Azure Key vault" task to download password from an Azure Key Vault
+- This will fetch the password and set them as task variables which can be consumed in Create VM task and passed as Parameter to ARM template.
+
+
+
+
