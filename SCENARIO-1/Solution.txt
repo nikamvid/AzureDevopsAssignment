@@ -1,1 +1,86 @@
-Test file
+Problem Statement:
+
+A car rental company called FastCarz has a .net Web Application and Web API which are recently migrated from on-premise system to Azure cloud using Azure Web App Service
+and Web API Service.
+The on-premises system had 3 environments Dev, QA and Prod.
+The code repository was maintained in TFS and moved to Azure GIT now. The TFS has daily builds which triggers every night which build the solution and copy the build package to drop folder.
+deployments were done to the respective environment manually. The customer is planning to setup Azure DevOps service for below requirements:
+1) The build should trigger as soon as anyone in the dev team checks in code to master branch.
+2) There will be test projects which will create and maintained in the solution along the Web and API. The trigger should build all the 3 projects - Web, API and test.
+   The build should not be successful if any test fails.
+3) The deployment of code and artifacts should be automated to Dev environment. 
+4) Upon successful deployment to the Dev environment, deployment should be easily promoted to QA and Prod through automated process.
+5) The deployments to QA and Prod should be enabled with Approvals from approvers only.
+
+solution:
+
+Lets consider , A repository named  "Rental_System_Workflow_Automation" has a application code.
+1. Bellow are the steps to implement CI to trigger build for every checkin/commit to master branch: 
+    1. Edit Build Pipeline --> Set Source repository and default branch (master)
+    2. Goto the "Triggers" setting in build pipeline and select "Enable Continuous Integration". 
+       We can batch the changes/ckeckins as well along with CI while build is in progress.
+
+2. Build Pipeline steps to Build Project and Run Test cases:
+    - Prepare analysis for SonarQube
+    - Build Project (.yml copied from azure pipeline)
+            Task: .Net Core
+            task: DotNetCoreCLI@2
+                inputs:
+             command: 'build'
+             projects: '**/*.csproj'
+             arguments: '$(buildConfiguration)'
+     -Run unit test cases
+            Task: Visual Studio test (VSTest Runner)
+            testSelector: 'testAssemblies'
+            testAssemblyVer2: |
+                    **\*test*.dll
+                    !**\obj\**
+            searchFolder: '$(System.DefaultWorkingDirectory)'
+      Enable Code coverage and upload Test attachments
+      -Publish test results : select option "fail the task if there are any test failure"
+      -Run Code Analysis
+      -Copy publish Artifacts:
+             Copy **\*.zip or **\*$(Package) files from $(Build.AgentDirectory) and publish to Server/ file share path
+      
+      -Deploy package to package manager (eg. Jfrog Artifactory)
+
+So, We can fail the build by enabling/setting "Fail the task if any test failure" in task : Publish test result.
+and To avoid partailiy successfull build, we can set the control option for each task to run : "Run only when all previous task have succeeded"
+
+3. To automate the deployment to DEV env after each successful build:
+    -Create Release pipeline 
+    -Set artifact configuration for release pipeline.
+      1. name of build pipeline that publishes the artifacts
+      2. default version : latest
+    -Enable "Continuous deployment trigger" , so that it will trigger/create new release every time new build artifact is available.
+    - Create stage/Phase : "DEV ENV"
+    -Add/Set Pre-deployment Condition for DEV ENV stage: "After Release" --> Deploy this stage every time once new release is created.
+    
+    Release pipeline steps to deploy build artifact to Dev env
+    -Copy File to dev VM
+             Task: Copy files
+             Source : $(Build.AgentDirectory)/$(packagepath)
+             Content : $(Packagename) or *.zip
+             targetPath : $(DEV_VM_Path)
+
+    -IIS Web APP deployment
+            WinRM connection to dev machine --> Deploy package
+
+4. Once DEV env release is successful, Deploy same package to QA and PROD env
+     -Add two new stages  "QA" and "PROD" in same release pipeline along with tasks to deploy package on respective environments.
+     -To run these stages parallelly, set up pre-deployment Condition for both : "After stage" (Deploy to this stage once deployment of selected stage(DEV) is successfull)
+
+5. Pre-Deployment Approval to QA and PROD env:
+  In Pre depoyment conditions of each stage, Azure devops have provided functionality to add pre approval condition.
+    -Add Specific user/ Group as approvers
+    -Specify the time that an approval is allowed to be pending before it is automatically get rejected.
+    -Set the approval policy: for eg. user requesting release should not approve the same.
+
+
+I have attached screen shot of release pipeline workflow.
+
+             
+
+            
+
+
