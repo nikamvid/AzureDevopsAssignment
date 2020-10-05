@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "comments": "This template created only for Assignment purposes.",
+    "author": "TestTest"
+    },
+  "parameters": {
+    "newVMName": {
+      "type": "string",
+      "defaultValue": "$(VMName)"
+    },
+    "labName": {
+      "type": "string",
+      "defaultValue": "$(LabName)"
+    },
+    "size": {
+      "type": "string",
+      "defaultValue": "Standard_D2_v3"
+    },
+    "userName": {
+      "type": "string",
+      "defaultValue": "$(userName)"
+    },
+    "password": {
+      "type": "securestring"
+    }
+  },
+  "variables": {
+    "storageAccountName": "[concat(uniqueString(subscription().subscriptionId), 'storage')]",
+	"vmName": "[concat(parameters('labName'), '/', parameters('newVMName'))]",
+	"vmId": "[resourceId ('Microsoft.Storage/storageAccounts', parameters('labName'), parameters('newVMName'))]"
+     
+  },
+  "resources": [
+    {
+      "apiVersion": "2019-04-01",
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[variables('vmName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "customImageId" : "$(RGAddress)"
+        "size": "[parameters('size')]",
+        "userName": "[parameters('userName')]",
+        "password": "[parameters('password')]",
+        "isAuthenticationWithSshKey": false,
+        "artifacts": [
+          
+        ],
+        "disallowPublicIpAddress": true,
+        "storageType": "Standard",
+        "allowClaim": false
+      }
+    }
+  ],
+  "outputs": {
+    "labVMId": {
+      "type": "string",
+      "value": "[variables('vmId')]"
+    }
+  }
+}
